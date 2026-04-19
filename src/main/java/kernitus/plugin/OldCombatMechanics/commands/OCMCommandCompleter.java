@@ -64,6 +64,18 @@ public class OCMCommandCompleter implements TabCompleter {
                         .collect(Collectors.toList()));
             }
 
+        } else if (args[0].equalsIgnoreCase(Subcommand.globalswitch.toString())
+                && args.length == 2
+                && sender.hasPermission("oldcombatmechanics.globalswitch")) {
+            completions.addAll(Arrays.asList("on", "off", "toggle").stream()
+                    .filter(arg -> arg.startsWith(args[1].toLowerCase()))
+                    .collect(Collectors.toList()));
+        } else if (args[0].equalsIgnoreCase(Subcommand.globalmodeset.toString())
+                && args.length == 2
+                && sender.hasPermission("oldcombatmechanics.globalmodeset")) {
+            completions.addAll(Config.getModesets().keySet().stream()
+                    .filter(ms -> ms.startsWith(args[1]))
+                    .collect(Collectors.toList()));
         }
 
         return completions;

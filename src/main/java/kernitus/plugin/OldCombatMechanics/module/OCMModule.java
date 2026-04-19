@@ -20,6 +20,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -73,6 +74,12 @@ public abstract class OCMModule implements Listener {
         if (Config.isModuleAlwaysEnabled(configName)) {
             return true;
         }
+
+        final Optional<Boolean> globalSwitchResult = Config.checkGlobalSwitch(configName);
+        if (globalSwitchResult.isPresent()) {
+            return globalSwitchResult.get();
+        }
+
         final World world = humanEntity.getWorld();
         final String modesetName = PlayerStorage.getPlayerData(humanEntity.getUniqueId()).getModesetForWorld(world.getUID());
 

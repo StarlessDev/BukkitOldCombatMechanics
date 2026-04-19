@@ -7,6 +7,7 @@ package kernitus.plugin.OldCombatMechanics.commands;
 
 import kernitus.plugin.OldCombatMechanics.ModuleLoader;
 import kernitus.plugin.OldCombatMechanics.OCMMain;
+import kernitus.plugin.OldCombatMechanics.api.CombatSwitchService;
 import kernitus.plugin.OldCombatMechanics.utilities.Config;
 import kernitus.plugin.OldCombatMechanics.utilities.Messenger;
 import kernitus.plugin.OldCombatMechanics.utilities.storage.PlayerData;
@@ -30,7 +31,7 @@ public class OCMCommandHandler implements CommandExecutor {
     private final OCMMain plugin;
 
     enum Subcommand {
-        reload, mode
+        reload, mode, globalswitch, globalmodeset
     }
 
     public OCMCommandHandler(OCMMain instance) {
@@ -50,6 +51,10 @@ public class OCMCommandHandler implements CommandExecutor {
             Messenger.sendNoPrefix(sender,
                     Config.getConfig().getString("mode-messages.message-usage",
                             "&4ERROR: &rmode-messages.message-usage string missing"));
+        if (checkPermissions(sender, Subcommand.globalswitch))
+            Messenger.sendNoPrefix(sender, "&eUse &c/ocm globalswitch [on|off|toggle]&e to view or change the global switch");
+        if (checkPermissions(sender, Subcommand.globalmodeset))
+            Messenger.sendNoPrefix(sender, "&eUse &c/ocm globalmodeset <modeset>&e to set the global modeset");
 
         Messenger.sendNoPrefix(sender, ChatColor.DARK_GRAY + Messenger.HORIZONTAL_BAR);
     }
@@ -146,6 +151,65 @@ public class OCMCommandHandler implements CommandExecutor {
         ModuleLoader.getModules().forEach(module -> module.onModesetChange(playerCopy));
     }
 
+    private CombatSwitchService combatSwitchService() {
+        final CombatSwitchService service = Bukkit.getServicesManager().load(CombatSwitchService.class);
+        if (service == null) {
+            throw new IllegalStateException("CombatSwitchService is not registered");
+        }
+        return service;
+    }
+
+    private void globalswitch(CommandSender sender, String[] args) {
+        final CombatSwitchService service = combatSwitchService();
+
+        if (args.length < 2) {
+            Messenger.send(sender, "&eGlobal switch is currently &6%s", service.isGlobalSwitchEnabled() ? "enabled" : "disabled");
+            return;
+        }
+
+        final String action = args[1].toLowerCase(Locale.ROOT);
+        final boolean newValue;
+        switch (action) {
+            case "on":
+            case "enable":
+            case "true":
+                newValue = true;
+                break;
+            case "off":
+            case "disable":
+            case "false":
+                newValue = false;
+                break;
+            case "toggle":
+                newValue = !service.isGlobalSwitchEnabled();
+                break;
+            default:
+                Messenger.send(sender, "&cUsage: /ocm globalswitch [on|off|toggle]");
+                return;
+        }
+
+        service.setGlobalSwitchEnabled(newValue);
+        Messenger.send(sender, "&eGlobal switch set to &6%s", newValue ? "enabled" : "disabled");
+    }
+
+    private void globalmodeset(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            Messenger.send(sender, "&cUsage: /ocm globalmodeset <modeset>");
+            return;
+        }
+
+        final String modesetName = args[1].toLowerCase(Locale.ROOT);
+        if (!Config.getModesets().containsKey(modesetName)) {
+            Messenger.send(sender,
+                    Config.getConfig().getString("mode-messages.invalid-modeset",
+                            "&4ERROR: &rmode-messages.invalid-modeset string missing"));
+            return;
+        }
+
+        combatSwitchService().setGlobalModeset(modesetName);
+        Messenger.send(sender, "&eGlobal modeset set to &6%s", modesetName);
+    }
+
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label,
             String[] args) {
         if (args.length < 1) {
@@ -161,6 +225,12 @@ public class OCMCommandHandler implements CommandExecutor {
                                 break;
                             case mode:
                                 mode(sender, args);
+                                break;
+                            case globalswitch:
+                                globalswitch(sender, args);
+                                break;
+                            case globalmodeset:
+                                globalmodeset(sender, args);
                                 break;
                             default:
                                 throw new CommandNotRecognisedException();

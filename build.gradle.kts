@@ -111,7 +111,7 @@ dependencies {
     // JSR-305 annotations (javax.annotation.Nullable)
     compileOnly("com.google.code.findbugs:jsr305:3.0.2")
     // PacketEvents
-    implementation("com.github.retrooper:packetevents-spigot:2.11.2")
+    compileOnly("com.github.retrooper:packetevents-spigot:2.12.0")
     // XSeries
     implementation("com.github.cryptomorin:XSeries:13.6.0")
 
@@ -136,6 +136,7 @@ dependencies {
     add("integrationTestCompileOnly", "org.spigotmc:spigot-api:1.21.11-R0.1-SNAPSHOT")
     add("integrationTestCompileOnly", "com.mojang:authlib:6.0.54")
     add("integrationTestCompileOnly", "io.netty:netty-all:4.1.130.Final")
+    add("integrationTestCompileOnly", "com.github.retrooper:packetevents-spigot:2.12.0")
 }
 
 // Substitute ${pluginVersion} in plugin.yml with version defined above
@@ -168,8 +169,8 @@ val shadowJarTask =
             exclude(dependency("org.jetbrains.kotlin:.*"))
             relocate("org.bstats", "kernitus.plugin.OldCombatMechanics.lib.bstats")
             relocate("com.cryptomorin.xseries", "kernitus.plugin.OldCombatMechanics.lib.xseries")
-            relocate("com.github.retrooper.packetevents", "kernitus.plugin.OldCombatMechanics.lib.packetevents.api")
-            relocate("io.github.retrooper.packetevents", "kernitus.plugin.OldCombatMechanics.lib.packetevents.impl")
+            //relocate("com.github.retrooper.packetevents", "kernitus.plugin.OldCombatMechanics.lib.packetevents.api")
+            //relocate("io.github.retrooper.packetevents", "kernitus.plugin.OldCombatMechanics.lib.packetevents.impl")
         }
     }
 
@@ -200,8 +201,7 @@ val relocateIntegrationTestClasses =
         dependsOn("compileIntegrationTestKotlin")
         configurations = emptyList()
         from(sourceSets["integrationTest"].output)
-        relocate("com.github.retrooper.packetevents", "kernitus.plugin.OldCombatMechanics.lib.packetevents.api")
-        relocate("io.github.retrooper.packetevents", "kernitus.plugin.OldCombatMechanics.lib.packetevents.impl")
+        // PacketEvents is now provided by the external plugin at runtime, so no relocation is needed.
     }
 
 val integrationTestJarTask =

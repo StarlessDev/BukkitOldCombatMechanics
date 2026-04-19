@@ -41,6 +41,10 @@ Fine‑tune Minecraft combat, movement, and item balance without breaking your s
 
 <hr/>
 
+## Patches
+- Added a toggle for metrics collection (BStats)
+- Added a global switch to toggle modesets on or off for all players, also with an API
+
 ## 🧰 Modesets
 - Per-player/per-world presets that decide which features are active; each world has an allowed list and a default modeset.
 - Let players pick ( `/ocm modeset <name>` ) to run, for example, 1.8-style PvP in an arena world while keeping vanilla rules in survival.

@@ -5,8 +5,8 @@
  */
 package kernitus.plugin.OldCombatMechanics;
 
-import com.github.retrooper.packetevents.PacketEvents;
-import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
+import kernitus.plugin.OldCombatMechanics.api.CombatSwitchService;
+import kernitus.plugin.OldCombatMechanics.api.impl.CombatSwitchServiceImpl;
 import kernitus.plugin.OldCombatMechanics.commands.OCMCommandCompleter;
 import kernitus.plugin.OldCombatMechanics.commands.OCMCommandHandler;
 import kernitus.plugin.OldCombatMechanics.hooks.PlaceholderAPIHook;
@@ -30,6 +30,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.RegisteredListener;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -53,12 +54,6 @@ public class OCMMain extends JavaPlugin {
     }
 
     @Override
-    public void onLoad() {
-        PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this));
-        PacketEvents.getAPI().load();
-    }
-
-    @Override
     public void onEnable() {
         INSTANCE = this;
 
@@ -76,7 +71,6 @@ public class OCMMain extends JavaPlugin {
 
         // Initialise the Messenger utility
         Messenger.initialise(this);
-        PacketEvents.getAPI().init();
 
         // Register all the modules
         registerModules();
@@ -94,34 +88,42 @@ public class OCMMain extends JavaPlugin {
 
         Config.reload();
 
-        // BStats Metrics
-        final Metrics metrics = new Metrics(this, 53);
+        final Metrics metrics;
+        final boolean metricsEnabled = Config.metricsEnabled();
+        if (metricsEnabled) {
+            // BStats Metrics
+            metrics = new Metrics(this, 53);
 
-        metrics.addCustomChart(new SimplePie("server_software", () -> {
-            final String name = Bukkit.getServer().getName();
-            if (name == null || name.isEmpty()) return "Unknown";
-            final String cleaned = name.split("\\s", 2)[0].trim();
-            return cleaned.isEmpty() ? "Unknown" : cleaned;
-        }));
+            metrics.addCustomChart(new SimplePie("server_software", () -> {
+                final String name = Bukkit.getServer().getName();
+                if (name == null || name.isEmpty()) return "Unknown";
+                final String cleaned = name.split("\\s", 2)[0].trim();
+                return cleaned.isEmpty() ? "Unknown" : cleaned;
+            }));
 
-        // Simple bar chart (kept in case bStats re-enables bar display)
-        metrics.addCustomChart(
-                new SimpleBarChart(
-                        "enabled_modules",
-                        () -> ModuleLoader.getModules().stream()
-                                .filter(OCMModule::isEnabled)
-                                .collect(Collectors.toMap(OCMModule::toString, module -> 1))));
+            // Simple bar chart (kept in case bStats re-enables bar display)
+            metrics.addCustomChart(
+                    new SimpleBarChart(
+                            "enabled_modules",
+                            () -> ModuleLoader.getModules().stream()
+                                    .filter(OCMModule::isEnabled)
+                                    .collect(Collectors.toMap(OCMModule::toString, module -> 1))));
 
-        // Pie chart of enabled/disabled for each module
-        ModuleLoader.getModules().forEach(module -> metrics.addCustomChart(
-                new SimplePie(module.getModuleName() + "_pie",
-                        () -> module.isEnabled() ? "enabled" : "disabled")));
+            // Pie chart of enabled/disabled for each module
+            ModuleLoader.getModules().forEach(module -> metrics.addCustomChart(
+                    new SimplePie(module.getModuleName() + "_pie",
+                            () -> module.isEnabled() ? "enabled" : "disabled")));
 
-        // Simple pie: exact count of enabled modules per server (as a string key).
-        metrics.addCustomChart(new SimplePie("enabled_modules_count", () -> {
-            int count = (int) ModuleLoader.getModules().stream().filter(OCMModule::isEnabled).count();
-            return Integer.toString(count);
-        }));
+            // Simple pie: exact count of enabled modules per server (as a string key).
+            metrics.addCustomChart(new SimplePie("enabled_modules_count", () -> {
+                int count = (int) ModuleLoader.getModules().stream().filter(OCMModule::isEnabled).count();
+                return Integer.toString(count);
+            }));
+
+            metrics.addCustomChart(new SimplePie("auto_update_pie",
+                    () -> Config.moduleSettingEnabled("update-checker",
+                            "auto-update") ? "enabled" : "disabled"));
+        }
 
         enableListeners.forEach(Runnable::run);
 
@@ -155,10 +157,13 @@ public class OCMMain extends JavaPlugin {
             Bukkit.getScheduler().runTaskLaterAsynchronously(this,
                     () -> new UpdateChecker(this).performUpdate(), 20L);
 
-        metrics.addCustomChart(new SimplePie("auto_update_pie",
-                () -> Config.moduleSettingEnabled("update-checker",
-                        "auto-update") ? "enabled" : "disabled"));
-
+        getServer()
+                .getServicesManager()
+                .register(CombatSwitchService.class,
+                        new CombatSwitchServiceImpl(this),
+                        this,
+                        ServicePriority.Normal
+                );
     }
 
     @Override
@@ -191,7 +196,7 @@ public class OCMMain extends JavaPlugin {
 
         PlayerStorage.instantSave();
 
-        PacketEvents.getAPI().terminate();
+        // PacketEvents is provided by an external plugin; do not terminate its API here.
 
         // Logging to console the disabling of OCM
         logger.info(pdfFile.getName() + " v" + pdfFile.getVersion() + " has been disabled");

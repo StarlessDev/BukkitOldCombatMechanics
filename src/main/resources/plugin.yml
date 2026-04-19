@@ -8,6 +8,7 @@ authors: [kernitus, Rayzr522]
 description: Reverts to pre-1.9 combat mechanics
 website: https://github.com/kernitus/BukkitOldCombatMechanics
 load: POSTWORLD
+depend: [packetevents]
 softdepend: [PlaceholderAPI]
 api-version: 1.13
 
@@ -28,6 +29,8 @@ permissions:
       oldcombatmechanics.mode.own: true
       oldcombatmechanics.mode.others: true
       oldcombatmechanics.swordblock: true
+      oldcombatmechanics.globalswitch: true
+      oldcombatmechanics.globalmodeset: true
   oldcombatmechanics.commands:
     description: Allows the usage of OCM commands
     default: op
@@ -49,4 +52,10 @@ permissions:
       oldcombatmechanics.mode: true
   oldcombatmechanics.swordblock:
     description: Allows players to block with sword
+    default: op
+  oldcombatmechanics.globalswitch:
+    description: Allows viewing and toggling the global combat switch
+    default: op
+  oldcombatmechanics.globalmodeset:
+    description: Allows setting the global modeset used when the switch is on
     default: op

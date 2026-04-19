@@ -6,11 +6,13 @@
 
 package kernitus.plugin.OldCombatMechanics.utilities.storage;
 
+import kernitus.plugin.OldCombatMechanics.utilities.Config;
 import org.bson.Document;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 public class PlayerData {
@@ -33,6 +35,10 @@ public class PlayerData {
     }
 
     public @Nullable String getModesetForWorld(UUID worldId) {
+        if (Config.globalSwitchEnabled()) {
+            return Config.globalSwitchModeset();
+        }
+
         return modesetByWorld.get(worldId);
     }
 

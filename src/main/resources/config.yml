@@ -10,30 +10,29 @@
 #                                                                           #
 # ###########################################################################
 
+bstats: false
+
+global_switch:
+  enabled: false
+  modeset: "new"
+
 always_enabled_modules:
   # Modules listed here are always enabled, regardless of modeset.
   # Each configurable module must appear in exactly one of: always_enabled_modules, disabled_modules, or a modeset.
   # Internal modules (modeset-listener, attack-cooldown-tracker, entity-damage-listener) are managed by the plugin and must not be listed.
   # If a module is listed in multiple sections or none, the plugin will throw an error.
-  - "attack-frequency"
-  - "old-armour-durability"
-  - "old-fishing-knockback"
-  - "fishing-rod-velocity"
-  - "projectile-knockback"
-  - "disable-crafting"
   - "update-checker"
-  - "old-brewing-stand"
-  - "disable-enderpearl-cooldown"
 
 disabled_modules:
   # Modules listed here are always disabled, regardless of modeset.
   # Of course, disabling a module which disables something will enable that something!
+  - "disable-enderpearl-cooldown"
   - "disable-offhand"
-  - "disable-sword-sweep-particles"
-  - "disable-attack-sounds"
   - "chorus-fruit"
-  - "old-burn-delay"
   - "attack-range"
+  - "disable-crafting"
+  - "projectile-knockback"
+  - "old-brewing-stand"
 
 modesets:
   # Modesets are lists of modules that are enabled for a player in that mode.
@@ -42,28 +41,34 @@ modesets:
   # If not PvP, the modeset of the defending entity is checked.
   # PlaceholderAPI: %ocm_modeset%
   old:
+    - "attack-frequency"
     - "disable-attack-cooldown"
+    - "disable-sword-sweep-particles"
+    - "disable-attack-sounds"
     - "disable-sword-sweep"
     - "old-tool-damage"
     - "sword-blocking"
     - "shield-damage-reduction"
+    - "fishing-rod-velocity"
     - "old-golden-apples"
     - "old-player-knockback"
     - "old-player-regen"
     - "old-armour-strength"
     - "old-potion-effects"
     - "old-critical-hits"
-  new:
-    - "old-golden-apples"
+    - "old-burn-delay"
+    - "old-armour-durability"
+    - "old-fishing-knockback"
+  new: []
 
 worlds:
   # These are the modesets available in each world.
   # If player has no modeset when moving worlds they'll be assigned first mode in list,
   # unless the mode from the world they are coming from is also available in the new world.
   # Worlds not specified below will have all modesets available.
-  world: [ "old", "new" ]
-  world_nether: [ "old", "new" ]
-  world_the_end: [ "old", "new" ]
+  world: [ "new" ]
+  world_nether: [ "new" ]
+  world_the_end: [ "new" ]
   # old_world: ["old"]
   # brave_new_world: ["new"]
 
@@ -131,7 +136,7 @@ old-tool-damage:
   tooltip:
     # Optionally adds a lore line showing the configured damage from old-tool-damage.damages (the actual damage OCM applies).
     # This is a cosmetic helper to reduce confusion, but can interact with other plugins that rewrite item lore.
-    enabled: true
+    enabled: false
     prefix: "OCM Damage:"
   # Damage values are in 1.9+ "actual damage" terms (1 damage = half a heart).
   # In 1.8, the client tooltip showed "+X Attack Damage", where X = (actual_damage - 1) because the base unarmed damage is 1.

@@ -224,7 +224,7 @@ public class Config {
         // Iterate over each world
         for (String worldName : worldsSection.getKeys(false)) {
             final World world = Bukkit.getWorld(worldName);
-            if(world == null){
+            if (world == null) {
                 Messenger.warn("Configured world " + worldName + " not found, skipping (might be loaded later?)...");
                 continue;
             }
@@ -232,7 +232,7 @@ public class Config {
         }
     }
 
-    public static void addWorld(World world){
+    public static void addWorld(World world) {
         final ConfigurationSection worldsSection = config.getConfigurationSection("worlds");
         addWorld(world, worldsSection);
     }
@@ -246,25 +246,26 @@ public class Config {
         worlds.put(world.getUID(), modesetsSet);
     }
 
-    public static void removeWorld(World world){
+    public static void removeWorld(World world) {
         worlds.remove(world.getUID());
     }
 
     /**
      * Get the default modeset for the given world.
+     *
      * @param worldId The UUID for the world to check the allowed modesets for
      * @return The default modeset, if found. Otherwise null.
      */
-    public static @Nullable Set<String> getDefaultModeset(UUID worldId){
-        if(!worlds.containsKey(worldId)) return null;
+    public static @Nullable Set<String> getDefaultModeset(UUID worldId) {
+        if (!worlds.containsKey(worldId)) return null;
 
         final Set<String> set = worlds.get(worldId);
-        if(set == null || set.isEmpty()) return null;
+        if (set == null || set.isEmpty()) return null;
 
         final Iterator<String> iterator = set.iterator();
-        if(iterator.hasNext()) {
+        if (iterator.hasNext()) {
             final String modesetName = iterator.next();
-            if(modesets.containsKey(modesetName)){
+            if (modesets.containsKey(modesetName)) {
                 return modesets.get(modesetName);
             }
         }
@@ -274,6 +275,7 @@ public class Config {
 
     /**
      * Checks whether the module is present in the default modeset for the specified world
+     *
      * @param world The world to get the default modeset for
      * @return Whether the module is enabled for the found modeset
      */
@@ -281,11 +283,17 @@ public class Config {
         final String normalised = normaliseModuleName(moduleName);
         if (disabledModules.contains(normalised)) return false;
         if (alwaysEnabledModules.contains(normalised)) return true;
+
+        final Optional<Boolean> globalSwitchResult = checkGlobalSwitch(moduleName);
+        if (globalSwitchResult.isPresent()) {
+            return globalSwitchResult.get();
+        }
+
         if (world == null) return isModuleInAnyModeset(normalised); // Only checking if module is globally enabled
 
         final Set<String> defaultModeset = getDefaultModeset(world.getUID());
         // If no default modeset found, the module should be enabled
-        if(defaultModeset == null){
+        if (defaultModeset == null) {
             return isModuleInAnyModeset(normalised);
         }
 
@@ -295,6 +303,7 @@ public class Config {
 
     /**
      * Check if module is globally enable under its own config section
+     *
      * @param moduleName The name of the module to check
      * @return Whether the module has enabled: true in its config section
      */
@@ -310,6 +319,46 @@ public class Config {
         return config.getBoolean(moduleName + "." + moduleSettingName);
     }
 
+    public static boolean metricsEnabled() {
+        return config.getBoolean("bstats", false);
+    }
+
+    public static boolean globalSwitchEnabled() {
+        return config.getBoolean("global_switch.enabled", false);
+    }
+
+    public static @Nullable String globalSwitchModeset() {
+        return config.getString("global_switch.modeset");
+    }
+
+    public static void setGlobalSwitchEnabled(final boolean value) {
+        config.set("global_switch.enabled", value);
+    }
+
+    public static void setGlobalModeset(final String modeset) {
+        config.set("global_switch.modeset", modeset);
+    }
+
+    /**
+     * Checks if a module is enabled by a modeset
+     * forced by the global switch.
+     *
+     * @return Whether the module is enabled in an optional if the global
+     *         switch is enabled, otherwise an empty optional (normal logic).
+     */
+    public static Optional<Boolean> checkGlobalSwitch(final String moduleName) {
+        if (moduleName == null || !globalSwitchEnabled()) return Optional.empty();
+
+        final String modesetName = globalSwitchModeset();
+        if (modesetName == null) return Optional.empty();
+
+        final String normalised = normaliseModuleName(moduleName);
+        final Set<String> modeset = Config.getModesets().get(modesetName);
+        if (modeset == null) return Optional.empty();
+
+        return Optional.of(modeset.contains(normalised));
+    }
+
     /**
      * Only use if you can't access config through plugin instance
      *
@@ -319,7 +368,7 @@ public class Config {
         return plugin.getConfig();
     }
 
-    public static Map<String, Set<String>> getModesets(){
+    public static Map<String, Set<String>> getModesets() {
         return modesets;
     }
 
