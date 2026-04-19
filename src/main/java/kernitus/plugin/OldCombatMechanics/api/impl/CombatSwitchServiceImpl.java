@@ -5,6 +5,8 @@ import kernitus.plugin.OldCombatMechanics.OCMMain;
 import kernitus.plugin.OldCombatMechanics.api.CombatSwitchService;
 import kernitus.plugin.OldCombatMechanics.utilities.Config;
 
+import java.util.Objects;
+
 public class CombatSwitchServiceImpl implements CombatSwitchService {
 
     private final OCMMain main;
@@ -20,6 +22,10 @@ public class CombatSwitchServiceImpl implements CombatSwitchService {
 
     @Override
     public void setGlobalSwitchEnabled(boolean value) {
+        if (isGlobalSwitchEnabled() == value) {
+            return;
+        }
+
         Config.setGlobalSwitchEnabled(value);
         broadcastModesetChange();
         saveConfig();
@@ -27,6 +33,10 @@ public class CombatSwitchServiceImpl implements CombatSwitchService {
 
     @Override
     public void setGlobalModeset(String modeset) {
+        if (Objects.equals(Config.globalSwitchModeset(), modeset)) {
+            return;
+        }
+
         Config.setGlobalModeset(modeset);
         if (isGlobalSwitchEnabled()) {
             broadcastModesetChange();
