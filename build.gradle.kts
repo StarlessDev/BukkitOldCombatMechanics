@@ -27,8 +27,8 @@ val paperVersion: List<String> =
 plugins {
     `java-library`
     kotlin("jvm") version "2.3.21"
-    id("com.diffplug.spotless") version "8.5.1"
-    id("com.gradleup.shadow") version "9.4.1"
+    id("com.diffplug.spotless") version "8.6.0"
+    id("com.gradleup.shadow") version "9.4.2"
     id("xyz.jpenilla.run-paper") version "3.0.2"
     idea
     id("io.papermc.hangar-publish-plugin") version "0.1.4"
@@ -141,7 +141,7 @@ dependencies {
     // Placeholder API
     compileOnly("me.clip:placeholderapi:2.12.2")
     // For BSON file serialisation
-    implementation("org.mongodb:bson:5.7.0")
+    implementation("org.mongodb:bson:5.8.0")
     // Spigot
     compileOnly("org.spigotmc:spigot-api:26.1.2-R0.1-SNAPSHOT")
     testImplementation("io.kotest:kotest-runner-junit5-jvm:5.9.1")
