@@ -5,6 +5,10 @@
  */
 package kernitus.plugin.OldCombatMechanics;
 
+import com.github.retrooper.packetevents.PacketEvents;
+import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
+import kernitus.plugin.OldCombatMechanics.api.OldCombatMechanicsAPI;
+import kernitus.plugin.OldCombatMechanics.api.OldCombatMechanicsAPIImpl;
 import kernitus.plugin.OldCombatMechanics.api.CombatSwitchService;
 import kernitus.plugin.OldCombatMechanics.api.impl.CombatSwitchServiceImpl;
 import kernitus.plugin.OldCombatMechanics.commands.OCMCommandCompleter;
@@ -19,6 +23,7 @@ import kernitus.plugin.OldCombatMechanics.utilities.damage.AttackCooldownTracker
 import kernitus.plugin.OldCombatMechanics.utilities.damage.EntityDamageByEntityListener;
 import kernitus.plugin.OldCombatMechanics.utilities.reflection.Reflector;
 import kernitus.plugin.OldCombatMechanics.utilities.storage.ModesetListener;
+import kernitus.plugin.OldCombatMechanics.utilities.storage.PlayerModuleOverrides;
 import kernitus.plugin.OldCombatMechanics.utilities.storage.PlayerStorage;
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SimpleBarChart;
@@ -35,20 +40,27 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class OCMMain extends JavaPlugin {
 
+    private static final String BUILD_PROPERTIES_RESOURCE = "/ocm-build.properties";
+
     private static OCMMain INSTANCE;
+    private static String buildCommit;
     private final Logger logger = getLogger();
     private final OCMConfigHandler CH = new OCMConfigHandler(this);
     private final List<Runnable> disableListeners = new ArrayList<>();
     private final List<Runnable> enableListeners = new ArrayList<>();
     private final List<Hook> hooks = new ArrayList<>();
+    private OldCombatMechanicsAPI api;
     public OCMMain() {
         super();
     }
@@ -74,6 +86,10 @@ public class OCMMain extends JavaPlugin {
 
         // Register all the modules
         registerModules();
+
+        // Register public API service
+        api = new OldCombatMechanicsAPIImpl(this);
+        Bukkit.getServicesManager().register(OldCombatMechanicsAPI.class, api, this, ServicePriority.Normal);
 
         // Register all hooks for integrating with other plugins
         registerHooks();
@@ -151,7 +167,7 @@ public class OCMMain extends JavaPlugin {
 
         // Logging to console the enabling of OCM
         final PluginDescriptionFile pdfFile = this.getDescription();
-        logger.info(pdfFile.getName() + " v" + pdfFile.getVersion() + " has been enabled");
+        logger.info(pdfFile.getName() + " v" + getDisplayVersion() + " has been enabled");
 
         if (Config.moduleEnabled("update-checker"))
             Bukkit.getScheduler().runTaskLaterAsynchronously(this,
@@ -195,6 +211,13 @@ public class OCMMain extends JavaPlugin {
         });
 
         PlayerStorage.instantSave();
+
+        PlayerModuleOverrides.clearAll();
+
+        if (api != null) {
+            Bukkit.getServicesManager().unregister(OldCombatMechanicsAPI.class, api);
+            api = null;
+        }
 
         // PacketEvents is provided by an external plugin; do not terminate its API here.
 
@@ -312,6 +335,40 @@ public class OCMMain extends JavaPlugin {
 
     public static String getVersion() {
         return INSTANCE.getDescription().getVersion();
+    }
+
+    public String getDisplayVersion() {
+        return formatDisplayVersion(getDescription().getVersion());
+    }
+
+    public static String formatDisplayVersion(String version) {
+        final String commit = getBuildCommit();
+        if (commit.isEmpty()) return version;
+
+        return version + " (commit " + commit + ")";
+    }
+
+    private static synchronized String getBuildCommit() {
+        if (buildCommit == null) buildCommit = loadBuildCommit();
+
+        return buildCommit;
+    }
+
+    private static String loadBuildCommit() {
+        final Properties properties = new Properties();
+
+        try (InputStream stream = OCMMain.class.getResourceAsStream(BUILD_PROPERTIES_RESOURCE)) {
+            if (stream == null) return "";
+
+            properties.load(stream);
+        } catch (IOException e) {
+            return "";
+        }
+
+        final String commit = properties.getProperty("commit", "").trim();
+        if (commit.isEmpty() || commit.contains("${")) return "";
+
+        return commit;
     }
 
 }

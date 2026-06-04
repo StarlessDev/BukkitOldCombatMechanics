@@ -13,7 +13,6 @@ import org.gradle.api.file.FileCopyDetails
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import xyz.jpenilla.runpaper.task.RunServer
-import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.Serializable
 import java.net.URI
@@ -27,11 +26,38 @@ val paperVersion: List<String> =
 
 plugins {
     `java-library`
-    kotlin("jvm") version "2.3.0"
-    id("com.gradleup.shadow") version "9.3.0"
+    kotlin("jvm") version "2.3.21"
+    id("com.diffplug.spotless") version "8.5.1"
+    id("com.gradleup.shadow") version "9.4.1"
     id("xyz.jpenilla.run-paper") version "3.0.2"
     idea
     id("io.papermc.hangar-publish-plugin") version "0.1.4"
+}
+
+spotless {
+    // Avoid a noisy first formatter rollout; enforce Spotless on changed files.
+    ratchetFrom("origin/master")
+
+    kotlin {
+        target("src/**/*.kt")
+        ktlint()
+    }
+
+    kotlinGradle {
+        target("*.gradle.kts", "gradle/**/*.gradle.kts")
+        ktlint()
+        endWithNewline()
+    }
+
+    format("misc") {
+        target("*.md", "*.yml", "*.yaml", "*.properties", ".editorconfig")
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+tasks.named("check") {
+    dependsOn("spotlessCheck")
 }
 
 // Make sure javadocs are available to IDE
@@ -61,7 +87,7 @@ repositories {
 }
 
 group = "kernitus.plugin.OldCombatMechanics"
-version = "2.5.0-beta" // x-release-please-version
+version = "2.6.0-beta" // x-release-please-version
 description = "OldCombatMechanics"
 
 java {
@@ -76,6 +102,12 @@ sourceSets {
     val integrationTest by creating {
         kotlin.setSrcDirs(listOf("src/integrationTest/kotlin"))
         resources.setSrcDirs(listOf("src/integrationTest/resources"))
+        compileClasspath += main.get().output
+        runtimeClasspath += output + main.get().output
+    }
+    val apiSmokeTest by creating {
+        java.setSrcDirs(listOf("src/apiSmokeTest/java"))
+        resources.setSrcDirs(listOf("src/apiSmokeTest/resources"))
         compileClasspath += main.get().output
         runtimeClasspath += output + main.get().output
     }
@@ -97,26 +129,34 @@ configurations.named("compileClasspath") {
 configurations.named("integrationTestCompileClasspath") {
     attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 17)
 }
+configurations.named("apiSmokeTestCompileClasspath") {
+    attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 17)
+}
 
 dependencies {
-    implementation("org.bstats:bstats-bukkit:3.1.0")
-    // Shaded in by Bukkit
-    compileOnly("io.netty:netty-all:4.1.130.Final")
+    implementation("org.bstats:bstats-bukkit:3.2.1")
+    // Server-provided: intentionally pinned to the oldest supported runtime baseline
+    // (Minecraft 1.9.4 / Netty 4.0.23.Final) so compile-only code cannot use newer Netty APIs unavailable on legacy servers.
+    compileOnly("io.netty:netty-all:4.0.23.Final")
     // Placeholder API
-    compileOnly("me.clip:placeholderapi:2.11.6")
+    compileOnly("me.clip:placeholderapi:2.12.2")
     // For BSON file serialisation
-    implementation("org.mongodb:bson:5.6.2")
+    implementation("org.mongodb:bson:5.7.0")
     // Spigot
-    compileOnly("org.spigotmc:spigot-api:1.21.11-R0.1-SNAPSHOT")
+    compileOnly("org.spigotmc:spigot-api:26.1.2-R0.1-SNAPSHOT")
+    testImplementation("io.kotest:kotest-runner-junit5-jvm:5.9.1")
+    testImplementation("io.kotest:kotest-assertions-core-jvm:5.9.1")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     // JSR-305 annotations (javax.annotation.Nullable)
     compileOnly("com.google.code.findbugs:jsr305:3.0.2")
     // PacketEvents
-    compileOnly("com.github.retrooper:packetevents-spigot:2.12.0")
+    compileOnly("com.github.retrooper:packetevents-spigot:2.12.1")
     // XSeries
-    implementation("com.github.cryptomorin:XSeries:13.6.0")
+    implementation("com.github.cryptomorin:XSeries:13.7.0")
 
     // For ingametesting
     // Mojang mappings for NMS
+
     /*
     compileOnly("com.mojang:authlib:6.0.54")
     paperweight.paperDevBundle("1.19.2-R0.1-SNAPSHOT")
@@ -125,23 +165,25 @@ dependencies {
      */
 
     // Integration test dependencies
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.3.0")
-    add("integrationTestImplementation", "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.3.0")
-    add("integrationTestImplementation", "org.jetbrains.kotlin:kotlin-test:2.3.0")
-    add("integrationTestImplementation", "org.jetbrains.kotlin:kotlin-reflect:2.3.0")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.3.21")
+    add("integrationTestImplementation", "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.3.21")
+    add("integrationTestImplementation", "org.jetbrains.kotlin:kotlin-test:2.3.21")
+    add("integrationTestImplementation", "org.jetbrains.kotlin:kotlin-reflect:2.3.21")
     add("integrationTestImplementation", "io.kotest:kotest-runner-junit5-jvm:5.9.1")
     add("integrationTestImplementation", "io.kotest:kotest-assertions-core-jvm:5.9.1")
-    add("integrationTestImplementation", "net.kyori:adventure-api:4.26.1")
     add("integrationTestImplementation", "xyz.jpenilla:reflection-remapper:0.1.3")
-    add("integrationTestCompileOnly", "org.spigotmc:spigot-api:1.21.11-R0.1-SNAPSHOT")
+    add("integrationTestCompileOnly", "org.spigotmc:spigot-api:26.1.2-R0.1-SNAPSHOT")
     add("integrationTestCompileOnly", "com.mojang:authlib:6.0.54")
-    add("integrationTestCompileOnly", "io.netty:netty-all:4.1.130.Final")
-    add("integrationTestCompileOnly", "com.github.retrooper:packetevents-spigot:2.12.0")
+    add("integrationTestCompileOnly", "io.netty:netty-all:4.0.23.Final")
+
+    // Java-only API smoke plugin dependencies
+    add("apiSmokeTestCompileOnly", sourceSets.main.get().output)
+    add("apiSmokeTestCompileOnly", "org.spigotmc:spigot-api:1.21.11-R0.1-SNAPSHOT")
 }
 
 // Substitute ${pluginVersion} in plugin.yml with version defined above
 class ExpandPluginVersionAction(
-    private val version: String,
+    private val version: String
 ) : Action<FileCopyDetails>,
     Serializable {
     override fun execute(details: FileCopyDetails) {
@@ -149,11 +191,39 @@ class ExpandPluginVersionAction(
     }
 }
 
+class ExpandBuildCommitAction(
+    private val commit: String
+) : Action<FileCopyDetails>,
+    Serializable {
+    override fun execute(details: FileCopyDetails) {
+        details.expand(mapOf("buildCommit" to commit))
+    }
+}
+
 val pluginVersion = project.version.toString()
+val buildCommit =
+    runCatching {
+        val process =
+            ProcessBuilder("git", "rev-parse", "--short", "HEAD")
+                .directory(rootDir)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start()
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        val exitValue = process.waitFor()
+
+        if (exitValue == 0) {
+            output.trim()
+        } else {
+            ""
+        }
+    }.getOrDefault("")
 val expandPluginVersionAction = ExpandPluginVersionAction(pluginVersion)
+val expandBuildCommitAction = ExpandBuildCommitAction(buildCommit)
 tasks.named<Copy>("processResources") {
     inputs.property("pluginVersion", pluginVersion)
+    inputs.property("buildCommit", buildCommit)
     filesMatching("plugin.yml", expandPluginVersionAction)
+    filesMatching("ocm-build.properties", expandBuildCommitAction)
 }
 
 tasks.withType<JavaCompile> {
@@ -161,12 +231,15 @@ tasks.withType<JavaCompile> {
     options.release.set(8)
 }
 
+tasks.test {
+    useJUnitPlatform()
+}
+
 val shadowJarTask =
     tasks.named<ShadowJar>("shadowJar") {
         dependsOn("jar")
         archiveFileName.set("${project.name}.jar")
         dependencies {
-            exclude(dependency("org.jetbrains.kotlin:.*"))
             relocate("org.bstats", "kernitus.plugin.OldCombatMechanics.lib.bstats")
             relocate("com.cryptomorin.xseries", "kernitus.plugin.OldCombatMechanics.lib.xseries")
             //relocate("com.github.retrooper.packetevents", "kernitus.plugin.OldCombatMechanics.lib.packetevents.api")
@@ -175,6 +248,7 @@ val shadowJarTask =
     }
 
 // For ingametesting
+
 /*
 tasks.reobfJar {
     outputJar.set(File(buildDir, "libs/${project.name}.jar"))
@@ -229,11 +303,29 @@ val integrationTestJarTask =
         exclude("META-INF/versions/**/module-info.class")
     }
 
+val apiSmokeTestJarTask =
+    tasks.register<Jar>("apiSmokeTestJar") {
+        archiveClassifier.set("api-smoke-test")
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+        dependsOn("apiSmokeTestClasses")
+
+        from(sourceSets["apiSmokeTest"].output)
+
+        exclude("META-INF/*.SF")
+        exclude("META-INF/*.DSA")
+        exclude("META-INF/*.RSA")
+        exclude("META-INF/*.EC")
+        exclude("META-INF/*.MF")
+        exclude("module-info.class")
+        exclude("META-INF/versions/**/module-info.class")
+    }
+
 val integrationTestMinecraftVersion =
     (findProperty("integrationTestMinecraftVersion") as String?) ?: "1.19.2"
 
 val defaultIntegrationTestVersions =
-    listOf(integrationTestMinecraftVersion, "1.21.11", "1.12", "1.9.4")
+    listOf(integrationTestMinecraftVersion, "26.1.2", "1.21.11", "1.12", "1.9.4")
         .distinct()
 
 val integrationTestVersions: List<String> =
@@ -252,6 +344,8 @@ val integrationTestJavaVersionLegacy16 =
     (findProperty("integrationTestJavaVersionLegacy16") as String?)?.toInt() ?: 11
 val integrationTestJavaVersionModern =
     (findProperty("integrationTestJavaVersionModern") as String?)?.toInt() ?: 25
+val apiSmokeTestMinecraftVersion =
+    (findProperty("apiSmokeTestMinecraftVersion") as String?) ?: "1.19.2"
 
 fun parseMinecraftVersion(version: String): Triple<Int, Int, Int> {
     val parts = version.split(".")
@@ -275,9 +369,18 @@ fun requiresModernJava(version: String): Boolean {
 
 fun requiredJavaVersion(version: String): Int {
     if (needsLegacyVanillaJar(version)) return integrationTestJavaVersionLegacyPre13
+    if (requiresModernJava(version)) return integrationTestJavaVersionModern
     val (_, minor, _) = parseMinecraftVersion(version)
     if (minor <= 16) return integrationTestJavaVersionLegacy16
-    return if (requiresModernJava(version)) integrationTestJavaVersionModern else integrationTestJavaVersionLegacy
+    return integrationTestJavaVersionLegacy
+}
+
+fun supportsDamageTypeIntegrationDatapack(version: String): Boolean {
+    val (major, minor, patch) = parseMinecraftVersion(version)
+    if (major > 1) return true
+    if (major < 1) return false
+    if (minor > 21) return true
+    return minor == 21 && patch >= 11
 }
 
 data class KotestSummary(
@@ -289,7 +392,7 @@ data class KotestSummary(
     val testsIgnored: Int?,
     val testsTotal: Int?,
     val failures: List<String>,
-    val failureDetails: List<String>,
+    val failureDetails: List<String>
 )
 
 fun parseKotestSummary(logFile: File): KotestSummary? {
@@ -433,7 +536,7 @@ fun parseKotestSummary(logFile: File): KotestSummary? {
         testsIgnored,
         testsTotal,
         failures,
-        failureDetails.distinct(),
+        failureDetails.distinct()
     )
 }
 
@@ -480,6 +583,7 @@ for (version in integrationTestVersions) {
     val failuresFile = runDir.resolve("plugins/OldCombatMechanicsTest/test-failures.txt")
     val vanillaCacheFile = runDir.resolve("cache/mojang_$version.jar")
     val logFile = layout.buildDirectory.file("integration-test-logs/$suffix.log")
+    val datapackSourceDir = layout.projectDirectory.dir("src/integrationTest/datapacks")
 
     val writePropsTask =
         tasks.register<WriteProperties>("writeProperties$suffix") {
@@ -531,7 +635,7 @@ for (version in integrationTestVersions) {
                     if (!downloadedSha1.equals(serverSha1, ignoreCase = true)) {
                         tmpFile.delete()
                         throw GradleException(
-                            "Downloaded Minecraft server jar hash mismatch for $version. Expected $serverSha1, got $downloadedSha1.",
+                            "Downloaded Minecraft server jar hash mismatch for $version. Expected $serverSha1, got $downloadedSha1."
                         )
                     }
                     tmpFile.copyTo(vanillaCacheFile, overwrite = true)
@@ -562,7 +666,7 @@ for (version in integrationTestVersions) {
             javaLauncher.set(
                 javaToolchains.launcherFor {
                     languageVersion.set(JavaLanguageVersion.of(requiredJavaVersion(version)))
-                },
+                }
             )
 
             pluginJars.from(shadowJarTask.flatMap { it.archiveFile })
@@ -570,6 +674,16 @@ for (version in integrationTestVersions) {
             pluginJars.from(configurations["integrationTestServerPlugins"])
 
             doFirst {
+                val damageTypeDatapackDir = runDir.resolve("world/datapacks/ocmtest-bypasses-cooldown")
+                if (supportsDamageTypeIntegrationDatapack(version)) {
+                    copy {
+                        from(datapackSourceDir)
+                        into(runDir.resolve("world/datapacks"))
+                    }
+                } else if (damageTypeDatapackDir.exists()) {
+                    delete(damageTypeDatapackDir)
+                }
+
                 val log = logFile.get().asFile
                 log.parentFile.mkdirs()
                 val stream = log.outputStream()
@@ -607,11 +721,13 @@ for (version in integrationTestVersions) {
                 summary?.let {
                     val parts = mutableListOf<String>()
                     if (it.specsTotal != null) {
-                        parts.add("Specs: ${it.specsPassed ?: "?"} passed, ${it.specsFailed ?: "?"} failed, ${it.specsTotal} total")
+                        parts.add(
+                            "Specs: ${it.specsPassed ?: "?"} passed, ${it.specsFailed ?: "?"} failed, ${it.specsTotal} total"
+                        )
                     }
                     if (it.testsTotal != null) {
                         parts.add(
-                            "Tests: ${it.testsPassed ?: "?"} passed, ${it.testsFailed ?: "?"} failed, ${it.testsIgnored ?: 0} ignored, ${it.testsTotal} total",
+                            "Tests: ${it.testsPassed ?: "?"} passed, ${it.testsFailed ?: "?"} failed, ${it.testsIgnored ?: 0} ignored, ${it.testsTotal} total"
                         )
                     }
                     if (it.failures.isNotEmpty()) {
@@ -667,6 +783,72 @@ tasks.register("integrationTestMatrix") {
     group = "verification"
     description = "Runs integration tests against multiple Paper versions."
     dependsOn(integrationTestMatrixTasks)
+}
+
+val apiSmokeTestSuffix = versionTaskSuffix(apiSmokeTestMinecraftVersion)
+val apiSmokeRunDir = file("run/api-smoke-$apiSmokeTestMinecraftVersion")
+val apiSmokeResultFile = apiSmokeRunDir.resolve("plugins/OldCombatMechanicsApiSmokeTest/test-results.txt")
+val apiSmokeWritePropertiesTask =
+    tasks.register<WriteProperties>("writeApiSmokeProperties$apiSmokeTestSuffix") {
+        encoding = "UTF-8"
+        property("online-mode", false)
+        destinationFile.set(apiSmokeRunDir.resolve("server.properties"))
+    }
+
+val runApiSmokeServerTask =
+    tasks.register<RunServer>("runApiSmokeServer$apiSmokeTestSuffix") {
+        dependsOn(apiSmokeWritePropertiesTask, shadowJarTask, apiSmokeTestJarTask)
+        runDirectory.set(apiSmokeRunDir)
+        minecraftVersion(apiSmokeTestMinecraftVersion)
+        jvmArgs("-Dcom.mojang.eula.agree=true")
+        javaLauncher.set(
+            javaToolchains.launcherFor {
+                languageVersion.set(JavaLanguageVersion.of(requiredJavaVersion(apiSmokeTestMinecraftVersion)))
+            }
+        )
+
+        pluginJars.from(shadowJarTask.flatMap { it.archiveFile })
+        pluginJars.from(apiSmokeTestJarTask.flatMap { it.archiveFile })
+
+        doFirst {
+            if (apiSmokeResultFile.exists()) {
+                apiSmokeResultFile.delete()
+            }
+            val ocmConfigFile = apiSmokeRunDir.resolve("plugins/OldCombatMechanics/config.yml")
+            if (ocmConfigFile.exists()) {
+                ocmConfigFile.delete()
+            }
+            val pluginNames = pluginJars.files.map { it.name }
+            if (pluginNames.any { it.contains("tests", ignoreCase = true) }) {
+                throw GradleException("apiSmokeTest must not load the integration-test plugin jar: $pluginNames")
+            }
+            logger.lifecycle("API smoke server plugins: ${pluginNames.joinToString(", ")}")
+        }
+    }
+
+val checkApiSmokeResultsTask =
+    tasks.register("checkApiSmokeResults$apiSmokeTestSuffix") {
+        doLast {
+            if (!apiSmokeResultFile.exists()) {
+                throw GradleException(
+                    "API smoke result file not found for $apiSmokeTestMinecraftVersion: ${apiSmokeResultFile.relativeTo(
+                        projectDir
+                    )}"
+                )
+            }
+            val result = apiSmokeResultFile.readText().trim()
+            logger.lifecycle("API smoke result for $apiSmokeTestMinecraftVersion: $result")
+            if (result != "PASS") {
+                throw GradleException("API smoke test failed for $apiSmokeTestMinecraftVersion: $result")
+            }
+        }
+    }
+
+tasks.register("apiSmokeTest") {
+    group = "verification"
+    description = "Runs the Java API smoke plugin against a live Paper server ($apiSmokeTestMinecraftVersion)."
+    dependsOn(runApiSmokeServerTask)
+    finalizedBy(checkApiSmokeResultsTask)
 }
 
 val versionStringProvider = providers.provider { project.version.toString() }
