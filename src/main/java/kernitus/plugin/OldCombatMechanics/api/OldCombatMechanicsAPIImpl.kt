@@ -14,7 +14,8 @@ import kernitus.plugin.OldCombatMechanics.utilities.storage.PlayerStorage
 import org.bukkit.Bukkit
 import org.bukkit.World
 import org.bukkit.entity.Player
-import java.util.Locale
+import java.util.*
+import java.util.function.Consumer
 
 class OldCombatMechanicsAPIImpl(private val plugin: OCMMain) : OldCombatMechanicsAPI {
 
@@ -114,6 +115,43 @@ class OldCombatMechanicsAPIImpl(private val plugin: OCMMain) : OldCombatMechanic
             .any { PlayerModuleOverrides.getOverride(player, it) != PlayerModuleOverride.DEFAULT }
 
     override fun getModuleNames(): Set<String> = ModuleLoader.getConfigurableModuleNames()
+
+    override fun isGlobalSwitchEnabled(): Boolean {
+        return Config.globalSwitchEnabled()
+    }
+
+    override fun setGlobalSwitchEnabled(value: Boolean) {
+        if (isGlobalSwitchEnabled() == value) {
+            return
+        }
+
+        Config.setGlobalSwitchEnabled(value)
+        broadcastModesetChange()
+        saveConfig()
+    }
+
+    override fun setGlobalModeset(modeset: String) {
+        if (Config.globalSwitchModeset() == modeset) {
+            return
+        }
+
+        Config.setGlobalModeset(modeset)
+        if (isGlobalSwitchEnabled()) {
+            broadcastModesetChange()
+        }
+
+        saveConfig()
+    }
+
+    private fun broadcastModesetChange() {
+        plugin.server.onlinePlayers.forEach { player: Player? ->
+            ModuleLoader.getModules().forEach(Consumer { module: OCMModule? -> module!!.onModesetChange(player) })
+        }
+    }
+
+    private fun saveConfig() {
+        plugin.server.scheduler.runTaskAsynchronously(plugin, Runnable { plugin.saveConfig() })
+    }
 
     private fun validateModesetForPlayer(player: Player, modesetName: String) {
         if (!Config.getModesets().containsKey(modesetName)) {

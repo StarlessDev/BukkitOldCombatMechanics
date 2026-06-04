@@ -5,12 +5,8 @@
  */
 package kernitus.plugin.OldCombatMechanics;
 
-import com.github.retrooper.packetevents.PacketEvents;
-import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
 import kernitus.plugin.OldCombatMechanics.api.OldCombatMechanicsAPI;
 import kernitus.plugin.OldCombatMechanics.api.OldCombatMechanicsAPIImpl;
-import kernitus.plugin.OldCombatMechanics.api.CombatSwitchService;
-import kernitus.plugin.OldCombatMechanics.api.impl.CombatSwitchServiceImpl;
 import kernitus.plugin.OldCombatMechanics.commands.OCMCommandCompleter;
 import kernitus.plugin.OldCombatMechanics.commands.OCMCommandHandler;
 import kernitus.plugin.OldCombatMechanics.hooks.PlaceholderAPIHook;
@@ -172,14 +168,6 @@ public class OCMMain extends JavaPlugin {
         if (Config.moduleEnabled("update-checker"))
             Bukkit.getScheduler().runTaskLaterAsynchronously(this,
                     () -> new UpdateChecker(this).performUpdate(), 20L);
-
-        getServer()
-                .getServicesManager()
-                .register(CombatSwitchService.class,
-                        new CombatSwitchServiceImpl(this),
-                        this,
-                        ServicePriority.Normal
-                );
     }
 
     @Override
@@ -371,4 +359,7 @@ public class OCMMain extends JavaPlugin {
         return commit;
     }
 
+    public OldCombatMechanicsAPI getApi() {
+        return api;
+    }
 }

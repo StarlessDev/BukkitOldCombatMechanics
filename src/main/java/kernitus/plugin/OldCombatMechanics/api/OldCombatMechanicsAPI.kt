@@ -155,4 +155,10 @@ interface OldCombatMechanicsAPI {
      * Returns the names of all configurable modules that support per-player overrides.
      */
     fun getModuleNames(): Set<String>
+
+    fun isGlobalSwitchEnabled(): Boolean
+
+    fun setGlobalSwitchEnabled(value: Boolean)
+
+    fun setGlobalModeset(modeset: String)
 }

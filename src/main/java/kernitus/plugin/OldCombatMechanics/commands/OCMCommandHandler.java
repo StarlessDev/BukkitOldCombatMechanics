@@ -8,7 +8,6 @@ package kernitus.plugin.OldCombatMechanics.commands;
 import kernitus.plugin.OldCombatMechanics.ModuleLoader;
 import kernitus.plugin.OldCombatMechanics.OCMMain;
 import kernitus.plugin.OldCombatMechanics.api.PlayerModesetChangeEvent;
-import kernitus.plugin.OldCombatMechanics.api.CombatSwitchService;
 import kernitus.plugin.OldCombatMechanics.utilities.Config;
 import kernitus.plugin.OldCombatMechanics.utilities.Messenger;
 import kernitus.plugin.OldCombatMechanics.utilities.storage.PlayerData;
@@ -161,19 +160,9 @@ public class OCMCommandHandler implements CommandExecutor {
         ModuleLoader.notifyPlayerStateChanged(player);
     }
 
-    private CombatSwitchService combatSwitchService() {
-        final CombatSwitchService service = Bukkit.getServicesManager().load(CombatSwitchService.class);
-        if (service == null) {
-            throw new IllegalStateException("CombatSwitchService is not registered");
-        }
-        return service;
-    }
-
     private void globalswitch(CommandSender sender, String[] args) {
-        final CombatSwitchService service = combatSwitchService();
-
         if (args.length < 2) {
-            Messenger.send(sender, "&eGlobal switch is currently &6%s", service.isGlobalSwitchEnabled() ? "enabled" : "disabled");
+            Messenger.send(sender, "&eGlobal switch is currently &6%s", plugin.getApi().isGlobalSwitchEnabled() ? "enabled" : "disabled");
             return;
         }
 
@@ -191,14 +180,14 @@ public class OCMCommandHandler implements CommandExecutor {
                 newValue = false;
                 break;
             case "toggle":
-                newValue = !service.isGlobalSwitchEnabled();
+                newValue = !plugin.getApi().isGlobalSwitchEnabled();
                 break;
             default:
                 Messenger.send(sender, "&cUsage: /ocm globalswitch [on|off|toggle]");
                 return;
         }
 
-        service.setGlobalSwitchEnabled(newValue);
+        plugin.getApi().setGlobalSwitchEnabled(newValue);
         Messenger.send(sender, "&eGlobal switch set to &6%s", newValue ? "enabled" : "disabled");
     }
 
@@ -216,12 +205,12 @@ public class OCMCommandHandler implements CommandExecutor {
             return;
         }
 
-        combatSwitchService().setGlobalModeset(modesetName);
+        plugin.getApi().setGlobalModeset(modesetName);
         Messenger.send(sender, "&eGlobal modeset set to &6%s", modesetName);
     }
 
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label,
-            String[] args) {
+                             String[] args) {
         if (args.length < 1) {
             help(plugin, sender);
         } else {
